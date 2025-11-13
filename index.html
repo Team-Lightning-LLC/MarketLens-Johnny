@@ -7,6 +7,8 @@
   <link rel="icon" type="image/png" href="assets/logo.png">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/collections.css">
+  <!-- Portfolio Pulse Styles -->
+  <link rel="stylesheet" href="css/pulse-styles.css">
 <!-- Required libraries for markdown processing -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -41,32 +43,72 @@
 
   <!-- Shell -->
   <section class="shell">
-    <!-- Left: Documents -->
+    <!-- Left: Documents / Portfolio Pulse -->
     <aside class="left">
       <div class="panel-head">
         <span class="panel-title">Research Library</span>
       </div>
       <div class="left-body">
-        <!-- Search -->
-        <div class="searchBox" style="padding:0 0 8px 0">
-          <input id="docSearch" placeholder="Search documents…"/>
+        <!-- View Toggle -->
+        <div class="view-toggle">
+          <button class="view-toggle-btn active" id="viewLibrary">Library</button>
+          <button class="view-toggle-btn" id="viewPulse">Portfolio Pulse</button>
         </div>
-        
-        <!-- Collections Navigation Section -->
-        <div class="collections-section">
-          <div class="section-header">
-            <span class="section-title">Collections</span>
+
+        <!-- Library View (Default) -->
+        <div id="libraryContainer">
+          <!-- Search -->
+          <div class="searchBox" style="padding:0 0 8px 0">
+            <input id="docSearch" placeholder="Search documents…"/>
           </div>
-          <div id="collectionsList" class="collections-list">
-            <!-- Collections populated by JS -->
+          
+          <!-- Collections Navigation Section -->
+          <div class="collections-section">
+            <div class="section-header">
+              <span class="section-title">Collections</span>
+            </div>
+            <div id="collectionsList" class="collections-list">
+              <!-- Collections populated by JS -->
+            </div>
+          </div>
+          
+          <!-- Documents Viewing Section -->
+          <div class="documents-section">
+            <div class="docs-header" id="docsHeader">All Documents</div>
+            <div class="docs-scroll" id="docsPane">
+              <div class="empty">Loading your research library...</div>
+            </div>
           </div>
         </div>
-        
-        <!-- Documents Viewing Section -->
-        <div class="documents-section">
-          <div class="docs-header" id="docsHeader">All Documents</div>
-          <div class="docs-scroll" id="docsPane">
-            <div class="empty">Loading your research library...</div>
+
+        <!-- Portfolio Pulse View (Hidden by default) -->
+        <div id="pulseContainer">
+          <!-- Pulse Header -->
+          <div class="pulse-header">
+            <div class="pulse-title-row">
+              <div>
+                <span class="pulse-title">Portfolio Pulse:</span>
+                <span class="pulse-date" id="pulseDateDisplay">--</span>
+              </div>
+              <button class="pulse-generate-btn" id="pulseGenerateBtn">Generate Digest</button>
+            </div>
+            <div class="pulse-section-header">Articles For You</div>
+          </div>
+
+          <!-- Articles Container -->
+          <div class="pulse-articles-container" id="pulseArticlesContainer">
+            <div class="pulse-empty-state">
+              <p>Click "Generate Digest" to create personalized articles based on your holdings.</p>
+            </div>
+          </div>
+
+          <!-- Pulse Footer -->
+          <div class="pulse-footer">
+            <div class="pulse-status-indicator">
+              <span class="pulse-status-dot" id="pulseStatusDot"></span>
+              <span class="pulse-status-text" id="pulseStatusText">Active</span>
+            </div>
+            <span class="pulse-last-update" id="pulseLastUpdate">Last Update: --</span>
           </div>
         </div>
       </div>
@@ -383,6 +425,11 @@
   <script src="js/app.js"></script>
   <script src="js/tooltip.js"></script>
 
+  <!-- Portfolio Pulse Scripts -->
+  <script src="js/pulse-config.js"></script>
+  <script src="js/pulse-widget.js"></script>
+  <script src="js/pulse-integration.js"></script>
+
   <!-- Bottom left utilities -->
   <button id="downloadHistory" class="history-download-btn" title="Download research history">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -391,6 +438,6 @@
     Screen History
   </button>
     <!-- Bottom right build -->
-<div class="version-badge">Scout Build v3.0.0 - Last Updated: 11.12.2025</div>
+<div class="version-badge">Scout Build v3.0.1 - Last Updated: 11.12.2025</div>
 </body>
 </html>
