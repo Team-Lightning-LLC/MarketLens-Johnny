@@ -27,10 +27,23 @@ class PortfolioPulseWidget {
   }
 
   bindUI() {
-    // Manual generation trigger
-    const generateBtn = document.getElementById('pulseGenerateBtn');
-    if (generateBtn) {
-      generateBtn.addEventListener('click', () => this.generateDigest());
+    // Watchlist upload button
+    const uploadBtn = document.getElementById('pulseUploadBtn');
+    const fileInput = document.getElementById('watchlistFileInput');
+    const changeBtn = document.getElementById('watchlistChangeBtn');
+    const refreshBtn = document.getElementById('watchlistRefreshBtn');
+
+    if (uploadBtn && fileInput) {
+      uploadBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => this.handleWatchlistUpload(e));
+    }
+
+    if (changeBtn && fileInput) {
+      changeBtn.addEventListener('click', () => fileInput.click());
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => this.generateDigest());
     }
 
     // Expand/collapse article cards
@@ -43,6 +56,248 @@ class PortfolioPulseWidget {
         article.classList.toggle('expanded');
       }
     });
+
+    // Check for existing watchlist on load
+    this.checkExistingWatchlist();
+  }
+
+  // Check if user already has a watchlist uploaded
+  async checkExistingWatchlist() {
+    try {
+      const response = await fetch(`${PULSE_CONFIG.VERTESIA_BASE_URL}/objects?limit=100`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${PULSE_CONFIG.VERTESIA_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) return;
+
+      const objects = await response.json();
+      const objectsArray = Array.isArray(objects) ? objects : objects.objects || [];
+      const watchlist = objectsArray.find(obj => obj.name && obj.name.startsWith('My Watchlist:'));
+
+      if (watchlist) {
+        this.showWatchlistDisplay(watchlist);
+      }
+    } catch (error) {
+      console.error('[Pulse] Failed to check for existing watchlist:', error);
+    }
+  }
+
+  // Handle watchlist file upload
+  async handleWatchlistUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const controls = document.querySelector('.watchlist-controls');
+    const uploadBtn = document.getElementById('pulseUploadBtn');
+    
+    try {
+      // Show uploading state
+      controls?.classList.add('uploading');
+      if (uploadBtn) uploadBtn.textContent = 'Uploading...';
+
+      // Step 1: Delete existing watchlist(s) - ONLY watchlists, nothing else
+      await this.deleteExistingWatchlists();
+
+      // Step 2: Upload new watchlist with standardized name
+      const today = new Date();
+      const dateStr = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}-${today.getFullYear()}`;
+      const watchlistName = `My Watchlist: ${dateStr}`;
+
+      const uploadedDoc = await this.uploadWatchlistFile(file, watchlistName);
+
+      // Step 3: Show success state
+      this.showWatchlistDisplay(uploadedDoc);
+
+      // Step 4: Wait for vectorization then generate digest
+      this.updateStatus('Processing...', true);
+      console.log('[Pulse] Waiting 30 seconds for vectorization...');
+      
+      await new Promise(resolve => setTimeout(resolve, 30000));
+
+      // Step 5: Auto-generate digest
+      await this.generateDigest();
+
+    } catch (error) {
+      console.error('[Pulse] Watchlist upload failed:', error);
+      alert('Failed to upload watchlist. Please try again.');
+      this.updateStatus('Upload Failed', false);
+    } finally {
+      controls?.classList.remove('uploading');
+      if (uploadBtn) {
+        uploadBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Watchlist
+        `;
+      }
+      // Reset file input
+      event.target.value = '';
+    }
+  }
+
+  // Delete any existing watchlist documents - SAFETY: Only deletes "My Watchlist:" documents
+  async deleteExistingWatchlists() {
+    try {
+      // Get all objects
+      const response = await fetch(`${PULSE_CONFIG.VERTESIA_BASE_URL}/objects?limit=1000`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${PULSE_CONFIG.VERTESIA_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch objects: ${response.statusText}`);
+      }
+
+      const objects = await response.json();
+      const objectsArray = Array.isArray(objects) ? objects : objects.objects || [];
+      
+      // SAFETY CHECK: Find ONLY watchlist documents
+      // Must start with "My Watchlist:" - this protects all other documents
+      const watchlists = objectsArray.filter(obj => {
+        if (!obj.name) return false;
+        
+        // Primary check: name must start with "My Watchlist:"
+        const isWatchlistName = obj.name.startsWith('My Watchlist:');
+        
+        if (!isWatchlistName) return false;
+        
+        // Log what we're about to delete for safety
+        console.log(`[Pulse] Found watchlist to delete: "${obj.name}" (ID: ${obj.id})`);
+        
+        return true;
+      });
+
+      if (watchlists.length === 0) {
+        console.log('[Pulse] No existing watchlists to delete');
+        return;
+      }
+
+      // Delete each watchlist
+      for (const watchlist of watchlists) {
+        console.log(`[Pulse] Deleting watchlist: ${watchlist.name}`);
+        
+        const deleteResponse = await fetch(`${PULSE_CONFIG.VERTESIA_BASE_URL}/objects/${watchlist.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${PULSE_CONFIG.VERTESIA_API_KEY}`
+          }
+        });
+
+        if (!deleteResponse.ok) {
+          console.error(`[Pulse] Failed to delete watchlist ${watchlist.id}:`, deleteResponse.statusText);
+        } else {
+          console.log(`[Pulse] Successfully deleted: ${watchlist.name}`);
+        }
+      }
+
+      console.log(`[Pulse] Deleted ${watchlists.length} existing watchlist(s)`);
+    } catch (error) {
+      console.error('[Pulse] Error deleting existing watchlists:', error);
+      throw error;
+    }
+  }
+
+  // Upload the watchlist file to Vertesia
+  async uploadWatchlistFile(file, name) {
+    try {
+      // Step 1: Get upload URL
+      const uploadUrlResponse = await fetch(`${PULSE_CONFIG.VERTESIA_BASE_URL}/objects/upload-url`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PULSE_CONFIG.VERTESIA_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: name,
+          type: file.type || 'application/octet-stream',
+          size: file.size
+        })
+      });
+
+      if (!uploadUrlResponse.ok) {
+        throw new Error(`Failed to get upload URL: ${uploadUrlResponse.statusText}`);
+      }
+
+      const uploadData = await uploadUrlResponse.json();
+
+      // Step 2: Upload file to the signed URL
+      const uploadResponse = await fetch(uploadData.url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload file: ${uploadResponse.statusText}`);
+      }
+
+      // Step 3: Confirm upload and create object
+      const confirmResponse = await fetch(`${PULSE_CONFIG.VERTESIA_BASE_URL}/objects`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PULSE_CONFIG.VERTESIA_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: name,
+          content: {
+            source: uploadData.source,
+            type: file.type || 'application/octet-stream',
+            size: file.size
+          },
+          properties: {
+            type: 'watchlist',
+            uploaded_at: new Date().toISOString(),
+            original_filename: file.name
+          }
+        })
+      });
+
+      if (!confirmResponse.ok) {
+        throw new Error(`Failed to confirm upload: ${confirmResponse.statusText}`);
+      }
+
+      const createdObject = await confirmResponse.json();
+      console.log('[Pulse] Watchlist uploaded successfully:', createdObject);
+      
+      return createdObject;
+    } catch (error) {
+      console.error('[Pulse] Error uploading watchlist:', error);
+      throw error;
+    }
+  }
+
+  // Show the watchlist display UI
+  showWatchlistDisplay(watchlistDoc) {
+    const uploadBtn = document.getElementById('pulseUploadBtn');
+    const watchlistDisplay = document.getElementById('watchlistDisplay');
+    const watchlistName = document.getElementById('watchlistName');
+
+    if (uploadBtn) uploadBtn.style.display = 'none';
+    if (watchlistDisplay) watchlistDisplay.style.display = 'flex';
+
+    // Set tooltip with last updated date
+    if (watchlistName && watchlistDoc) {
+      const updatedDate = new Date(watchlistDoc.created_at || watchlistDoc.properties?.uploaded_at);
+      const formattedDate = updatedDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      watchlistName.setAttribute('data-tooltip', `Last updated: ${formattedDate}`);
+    }
   }
 
   // Check if digest is from today, if not generate new one
@@ -101,11 +356,12 @@ class PortfolioPulseWidget {
     this.isGenerating = true;
     this.updateStatus('Generating...', false);
     
-    const generateBtn = document.getElementById('pulseGenerateBtn');
-    if (generateBtn) {
-      generateBtn.disabled = true;
-      generateBtn.textContent = 'Generating...';
-    }
+    // Disable buttons during generation
+    const refreshBtn = document.getElementById('watchlistRefreshBtn');
+    const changeBtn = document.getElementById('watchlistChangeBtn');
+    
+    if (refreshBtn) refreshBtn.disabled = true;
+    if (changeBtn) changeBtn.disabled = true;
 
     try {
       // Execute async Pulse interaction
@@ -124,10 +380,8 @@ class PortfolioPulseWidget {
     } finally {
       this.isGenerating = false;
       
-      if (generateBtn) {
-        generateBtn.disabled = false;
-        generateBtn.textContent = 'Generate Digest';
-      }
+      if (refreshBtn) refreshBtn.disabled = false;
+      if (changeBtn) changeBtn.disabled = false;
     }
   }
 
@@ -230,7 +484,7 @@ class PortfolioPulseWidget {
       .map(block => block.trim())
       .filter(Boolean);
 
-    const articles = [];
+    let articles = [];
 
     for (const block of articleBlocks) {
       // Extract article title
@@ -295,6 +549,9 @@ class PortfolioPulseWidget {
 
       articles.push({ title, contents, citations });
     }
+
+    // Filter out untitled articles
+    articles = articles.filter(article => article.title !== 'Untitled Article');
 
     // Extract document title
     const docTitle = text.match(/^#?\s*Scout Pulse Portfolio Digest.*$/m)?.[0]
