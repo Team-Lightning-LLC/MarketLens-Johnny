@@ -683,16 +683,23 @@ filterAndRenderDocuments() {
   }
 
   // Populate document selector for white label
-  populateDocumentSelector() {
-    const selector = document.getElementById('documentSelector');
-    if (!selector) return;
-    
-    if (this.documents.length === 0) {
-      selector.innerHTML = '<div class="empty">No documents available. Create some research first.</div>';
-      return;
-    }
-    
-    const html = this.documents.map(doc => `
+populateDocumentSelector() {
+  const selector = document.getElementById('documentSelector');
+  if (!selector) return;
+  
+  // Filter out Pulse documents (Digests and Watchlists)
+  const availableDocs = this.documents.filter(doc => {
+    const isDigest = doc.title && doc.title.toLowerCase().startsWith('digest:');
+    const isWatchlist = doc.title && doc.title.toLowerCase().startsWith('my watchlist:');
+    return !isDigest && !isWatchlist;
+  });
+  
+  if (availableDocs.length === 0) {
+    selector.innerHTML = '<div class="empty">No documents available. Create some research first.</div>';
+    return;
+  }
+  
+  const html = availableDocs.map(doc => `
       <div class="selectable-doc ${this.selectedDocuments.includes(doc.id) ? 'selected' : ''}" 
            data-doc-id="${doc.id}">
         <div class="selectable-doc-title">${doc.title}</div>
