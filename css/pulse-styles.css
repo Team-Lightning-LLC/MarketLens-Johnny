@@ -116,6 +116,13 @@
   border-top: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
 }
+.pulse-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  margin: 16px 0;
+  color: #172A3A;
+}
 
 /* Articles Container */
 .pulse-articles-container {
