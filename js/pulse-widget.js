@@ -497,8 +497,9 @@ class PortfolioPulseWidget {
   }
 
   // Load all digests from Vertesia object store
-  async loadAllDigests() {
-    this.updateStatus('Loading...', false);
+async loadAllDigests() {
+  this.updateStatus('Loading...', false);
+  this.showLoadingOverlay(true);
 
     try {
       const response = await this.pulseAPI.loadAllObjects(1000);
@@ -571,10 +572,12 @@ class PortfolioPulseWidget {
       this.renderDigest();
       this.updateNavButtons();
       this.updateStatus('Active', true);
+      this.showLoadingOverlay(false);
 
-    } catch (error) {
+} catch (error) {
       console.error('[Pulse] Failed to load digests:', error);
       this.updateStatus('No Digest', false);
+      this.showLoadingOverlay(false); 
       this.digest = null;
       this.allDigests = [];
       this.updateNavButtons();
