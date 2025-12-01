@@ -462,15 +462,18 @@ class PortfolioPulseWidget {
   }
 
   // Manual or scheduled digest generation
-  async generateDigest() {
-    if (this.isGenerating) {
-      console.log('[Pulse] Generation already in progress');
-      return;
-    }
-    
-    this.isGenerating = true;
-    this.updateStatus('Generating...', false);
+async generateDigest() {
+  if (this.isGenerating) {
+    console.log('[Pulse] Generation already in progress');
+    return;
+  }
+  
+  this.isGenerating = true;
+  this.updateStatus('Generating...', false);
+  // Only show overlay if no existing content
+  if (this.allDigests.length === 0) {
     this.showLoadingOverlay(true);
+  }
     
     const refreshBtn = document.getElementById('watchlistRefreshBtn');
     const changeBtn = document.getElementById('watchlistChangeBtn');
@@ -499,8 +502,10 @@ class PortfolioPulseWidget {
   // Load all digests from Vertesia object store
 async loadAllDigests() {
   this.updateStatus('Loading...', false);
-  this.showLoadingOverlay(true);
-
+  // Only show overlay if no existing content to display
+  if (this.allDigests.length === 0) {
+    this.showLoadingOverlay(true);
+  }
     try {
       const response = await this.pulseAPI.loadAllObjects(1000);
       const objects = response.objects || [];
