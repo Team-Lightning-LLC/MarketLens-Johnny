@@ -2,7 +2,7 @@
 const CONFIG = {
   // Vertesia API Configuration
   VERTESIA_API_BASE: 'https://api.vertesia.io/api/v1',
-  VERTESIA_API_KEY: 'sk-2538a58567e4ebb6654c0a17ceab228c',
+  VERTESIA_API_KEY: 'sk-7681b09add1b0095a8a84b673953b856',
   ENVIRONMENT_ID: '681915c6a01fb262a410c161',
   MODEL: 'publishers/anthropic/models/claude-sonnet-4',
   
